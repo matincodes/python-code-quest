@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/abdul/Downloads/**)",
+      "Bash(python \"C:\\\\Users\\\\abdul\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\5d03ec30-9351-4427-9fab-8fe7f718ced4\\\\6a46cb4f-c2b7-42dd-b5d5-61213dec46f1\\\\skills\\\\docx\\\\scripts\\\\office\\\\unpack.py\" \"Python_Code_Quest_Frontend_PRD_Antigravity.docx\" \"prd_unpacked/\")",
+      "Bash(python -c ' *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vite *)",
+      "Bash(npx eslint *)"
+    ]
+  }
+}
