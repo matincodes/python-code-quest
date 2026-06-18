@@ -2,7 +2,11 @@ import { motion } from 'framer-motion';
 import { Code2, Blocks } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
 
-export default function ModeToggle() {
+interface ModeToggleProps {
+  lockBlocks?: boolean;
+}
+
+export default function ModeToggle({ lockBlocks = false }: ModeToggleProps) {
   const { editorMode, setMode } = useUserStore();
 
   return (
@@ -26,14 +30,17 @@ export default function ModeToggle() {
       </button>
 
       <button
-        onClick={() => setMode('code')}
+        onClick={lockBlocks ? undefined : () => setMode('code')}
+        disabled={lockBlocks}
         className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-display font-semibold transition-colors ${
-          editorMode === 'code'
+          lockBlocks
+            ? 'text-white/20 cursor-not-allowed'
+            : editorMode === 'code'
             ? 'text-space-950 z-10'
             : 'text-white/50 hover:text-white/80'
         }`}
       >
-        {editorMode === 'code' && (
+        {!lockBlocks && editorMode === 'code' && (
           <motion.span
             layoutId="mode-pill"
             className="absolute inset-0 rounded-full bg-accent-gold shadow-gold-sm"

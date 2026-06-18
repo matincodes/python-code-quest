@@ -43,6 +43,14 @@
   background-color: #141414 !important;
 }
 
+/* Hide Blockly's always-visible workspace scrollbars */
+.blocklyScrollbarHorizontal,
+.blocklyScrollbarVertical,
+.blocklyScrollbarBackground,
+.blocklyScrollbarHandle {
+  display: none !important;
+}
+
 /* Ticker animation */
 @keyframes scrollTicker {
   0% { transform: translateX(100vw); }

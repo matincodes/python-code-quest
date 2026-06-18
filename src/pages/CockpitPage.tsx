@@ -450,7 +450,7 @@ export default function CockpitPage() {
 
         <div className="w-full lg:flex-1 flex flex-col gap-2 min-h-[520px] lg:min-h-0">
           <GlassCard className="!p-2.5 flex items-center justify-between gap-2">
-            <ModeToggle />
+            <ModeToggle lockBlocks={isBeginner} />
             <NeonButton
               variant="success"
               icon={<Play className="w-4 h-4" />}

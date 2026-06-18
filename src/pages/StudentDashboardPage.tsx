@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Play, LogOut, Trophy, History } from 'lucide-react';
 import GlassCard from '../components/shared/GlassCard';
 import NeonButton from '../components/shared/NeonButton';
+import { useUserStore } from '../store/userStore';
 import { useStudentAuthStore } from '../store/studentAuthStore';
 import { api } from '../api/client';
 
 const StudentDashboardPage: React.FC = () => {
   const { user, logout, checkAuth } = useStudentAuthStore();
+  const { isBeginner, setIsBeginner } = useUserStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<any[]>([]);
@@ -30,6 +32,9 @@ const StudentDashboardPage: React.FC = () => {
 
   const handleStartPractice = async () => {
     try {
+      if (isBeginner !== null) {
+        setIsBeginner(isBeginner);
+      }
       const res = await api.practiceSessions.start();
       navigate(`/student/practice/${res.session.id}`);
     } catch (e) {
@@ -73,6 +78,26 @@ const StudentDashboardPage: React.FC = () => {
             <div>
               <h2 className="font-display font-bold text-2xl mb-2">Practice Arena</h2>
               <p className="text-white/50 text-sm">Jump into the global question bank and hone your skills. No time pressure, just pure coding.</p>
+            </div>
+            <div className="w-full max-w-sm text-left space-y-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/35 font-semibold">Choose your starting mode</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[{ label: 'Total Beginner', value: true }, { label: 'Know some Python', value: false }].map(({ label, value }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setIsBeginner(value)}
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                      isBeginner === value
+                        ? 'border-accent-gold bg-accent-gold/15 text-accent-gold'
+                        : 'border-space-700 text-white/55 hover:border-space-600 hover:text-white/80'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-white/35">Total Beginner starts you in blocks mode.</p>
             </div>
             <NeonButton variant="primary" className="px-8 py-3 text-lg" onClick={handleStartPractice}>
               Start New Session

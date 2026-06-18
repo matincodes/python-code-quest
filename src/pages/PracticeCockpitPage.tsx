@@ -27,7 +27,7 @@ export default function PracticeCockpitPage() {
   const { user, checkAuth } = useStudentAuthStore();
   const { cockpitState, cockpitLine, clearLine } = useMontyStore();
   const { trigger } = useMonty();
-  const { editorMode } = useUserStore();
+  const { editorMode, isBeginner } = useUserStore();
   const [challenges, setChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [challengeIdx, setChallengeIdx] = useState(0);
@@ -263,7 +263,7 @@ export default function PracticeCockpitPage() {
         <div className="flex-1 flex flex-col min-w-0 bg-space-900 relative">
           {/* Editor Header */}
           <div className="min-h-12 border-b border-space-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:px-4 gap-2 bg-space-800/30">
-            <ModeToggle />
+            <ModeToggle lockBlocks={isBeginner} />
             {!isFinished && (
               <div className="flex items-center gap-4">
                 {challenge.timeLimit > 0 && !completedSet.has(challenge.id) && (
