@@ -7,7 +7,7 @@ interface BlocklyEditorProps {
 export default function BlocklyEditor({ onChange }: BlocklyEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const workspaceRef = useRef<any>(null);
   const onChangeRef = useRef(onChange);
@@ -160,38 +160,39 @@ export default function BlocklyEditor({ onChange }: BlocklyEditorProps) {
           });
 
         // ── Scratch-inspired dark theme ───────────────────────────────────
-        const scratchTheme = Blockly.Theme.defineTheme('scratchTheme', {
+        const themeName = 'scratchTheme_' + Math.random().toString(36).substring(7);
+        const scratchTheme = Blockly.Theme.defineTheme(themeName, {
           base: Blockly.Themes.Classic,
-          blockStyles: {
-            logic_blocks:    { colourPrimary: SCRATCH.control,   colourSecondary: '#CF8B17', colourTertiary: '#CF8B17' },
-            loop_blocks:     { colourPrimary: SCRATCH.control,   colourSecondary: '#CF8B17', colourTertiary: '#CF8B17' },
-            math_blocks:     { colourPrimary: SCRATCH.operators, colourSecondary: '#389438', colourTertiary: '#389438' },
-            text_blocks:     { colourPrimary: SCRATCH.looks,     colourSecondary: '#7D52CC', colourTertiary: '#7D52CC' },
-            list_blocks:     { colourPrimary: SCRATCH.motion,    colourSecondary: '#3A7DE0', colourTertiary: '#3A7DE0' },
-            variable_blocks: { colourPrimary: SCRATCH.variables, colourSecondary: '#CF6D00', colourTertiary: '#CF6D00' },
-            variable_dynamic_blocks: { colourPrimary: SCRATCH.variables, colourSecondary: '#CF6D00', colourTertiary: '#CF6D00' },
-            procedure_blocks: { colourPrimary: SCRATCH.myBlocks, colourSecondary: '#CC4466', colourTertiary: '#CC4466' },
-          },
-          componentStyles: {
-            workspaceBackgroundColour: '#1E1E2E',
-            toolboxBackgroundColour:   '#2A1F3D',
-            toolboxForegroundColour:   '#FFFFFF',
-            flyoutBackgroundColour:    '#332547',
-            flyoutForegroundColour:    '#FFFFFF',
-            flyoutOpacity:             0.97,
-            scrollbarColour:           '#9966FF',
-            scrollbarOpacity:          0.6,
-            insertionMarkerColour:     '#FFFFFF',
-            insertionMarkerOpacity:    0.3,
-            markerColour:              '#FFFFFF',
-            cursorColour:              '#FFAB19',
-          },
-          fontStyle: {
-            family: '"Nunito", "Segoe UI", sans-serif',
-            weight: '700',
-            size:   11,
-          },
-        });
+            blockStyles: {
+              logic_blocks:    { colourPrimary: SCRATCH.control,   colourSecondary: '#CF8B17', colourTertiary: '#CF8B17' },
+              loop_blocks:     { colourPrimary: SCRATCH.control,   colourSecondary: '#CF8B17', colourTertiary: '#CF8B17' },
+              math_blocks:     { colourPrimary: SCRATCH.operators, colourSecondary: '#389438', colourTertiary: '#389438' },
+              text_blocks:     { colourPrimary: SCRATCH.looks,     colourSecondary: '#7D52CC', colourTertiary: '#7D52CC' },
+              list_blocks:     { colourPrimary: SCRATCH.motion,    colourSecondary: '#3A7DE0', colourTertiary: '#3A7DE0' },
+              variable_blocks: { colourPrimary: SCRATCH.variables, colourSecondary: '#CF6D00', colourTertiary: '#CF6D00' },
+              variable_dynamic_blocks: { colourPrimary: SCRATCH.variables, colourSecondary: '#CF6D00', colourTertiary: '#CF6D00' },
+              procedure_blocks: { colourPrimary: SCRATCH.myBlocks, colourSecondary: '#CC4466', colourTertiary: '#CC4466' },
+            },
+            componentStyles: {
+              workspaceBackgroundColour: '#1E1E2E',
+              toolboxBackgroundColour:   '#2A1F3D',
+              toolboxForegroundColour:   '#FFFFFF',
+              flyoutBackgroundColour:    '#332547',
+              flyoutForegroundColour:    '#FFFFFF',
+              flyoutOpacity:             0.97,
+              scrollbarColour:           '#9966FF',
+              scrollbarOpacity:          0.6,
+              insertionMarkerColour:     '#FFFFFF',
+              insertionMarkerOpacity:    0.3,
+              markerColour:              '#FFFFFF',
+              cursorColour:              '#FFAB19',
+            },
+            fontStyle: {
+              family: '"Nunito", "Segoe UI", sans-serif',
+              weight: '700',
+              size:   11,
+            },
+          });
 
         // ── Inject workspace with Zelos renderer (Scratch look) ───────────
         workspaceRef.current = Blockly.inject(containerRef.current, {
@@ -211,9 +212,9 @@ export default function BlocklyEditor({ onChange }: BlocklyEditorProps) {
         });
 
         setLoaded(true);
-      } catch (e) {
+      } catch (e: any) {
         console.error('Blockly load error', e);
-        if (mounted) setError(true);
+        if (mounted) setError(e?.message || String(e));
       }
     })();
 
@@ -227,9 +228,12 @@ export default function BlocklyEditor({ onChange }: BlocklyEditorProps) {
   if (error) {
     return (
       <div className="flex items-center justify-center h-full bg-space-950 rounded-xl text-status-danger text-sm font-body p-4 text-center">
-        <div>
+        <div className="max-w-md">
           <p className="font-semibold mb-1">Blocks mode unavailable</p>
-          <p className="text-white/50 text-xs">Switch to CODE mode to continue coding.</p>
+          <p className="text-white/50 text-xs mb-4">Switch to CODE mode to continue coding.</p>
+          <div className="p-2 bg-black/40 rounded border border-status-danger/30 text-left overflow-hidden text-xs break-all text-status-danger/80">
+            {error}
+          </div>
         </div>
       </div>
     );

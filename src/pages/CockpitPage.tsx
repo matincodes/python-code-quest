@@ -26,7 +26,7 @@ type ConsoleStatus = 'idle' | 'running' | 'success' | 'error' | 'expired';
 export default function CockpitPage() {
   const navigate = useNavigate();
   const { alias, pin, editorMode, codeBroadcastEnabled, isBeginner, setCodeBroadcastEnabled, reset } = useUserStore();
-  const { currentChallenge, myScore, myPiecesUnlocked, updateScore, unlockPiece, setChallenge } = useGameStore();
+  const { currentChallenge, myScore, myPiecesUnlocked, updateScore, setChallenge } = useGameStore();
   const { cockpitState, cockpitLine, clearLine } = useMontyStore();
   const { trigger } = useMonty();
   const { connected, emit, on } = useSocket();
@@ -44,12 +44,24 @@ export default function CockpitPage() {
   const [hintIdx, setHintIdx] = useState(0);
   const [timerKey, setTimerKey] = useState(0);
   const [isExpired, setIsExpired] = useState(false);
-  const [showExpiredBanner, setShowExpiredBanner] = useState(false);
   const [completedSet, setCompletedSet] = useState<Set<string>>(new Set());
   const [sessionStatus, setSessionStatus] = useState<string>('waiting');
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isFinished, setIsFinished] = useState(false);
+  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
+  const [totalTimeLimit, setTotalTimeLimit] = useState(600);
+
+  // Refs to avoid stale closures in socket handlers
+  const challengesRef = useRef<any[]>([]);
+  const challengeIdxRef = useRef(0);
+  const completedSetRef = useRef<Set<string>>(new Set());
   const stuckTimerRef = useRef<number | null>(null);
   const challengeStartTimeRef = useRef<number>(Date.now());
+
+  // Keep refs in sync with state
+  useEffect(() => { challengesRef.current = challenges; }, [challenges]);
+  useEffect(() => { challengeIdxRef.current = challengeIdx; }, [challengeIdx]);
+  useEffect(() => { completedSetRef.current = completedSet; }, [completedSet]);
 
   const triggerRef = useRef(trigger);
   useEffect(() => { triggerRef.current = trigger; });
@@ -65,6 +77,7 @@ export default function CockpitPage() {
       try {
         const data = await api.challenges.getBySession(pin);
         setChallenges(data);
+        challengesRef.current = data; // set ref immediately so socket handlers can use it
         if (data.length > 0) {
           setChallenge(data[0]);
           setCode(data[0].starterCode ?? '');
@@ -73,82 +86,160 @@ export default function CockpitPage() {
         // Fetch session to get initial status
         const sessionInfo = await api.sessions.getByPin(pin);
         setSessionStatus(sessionInfo.status);
+        if (sessionInfo.startedAt) {
+          setSessionStartedAt(new Date(sessionInfo.startedAt).getTime());
+        }
+        if (sessionInfo.totalTimeLimit) {
+          setTotalTimeLimit(sessionInfo.totalTimeLimit);
+        }
+        if (sessionInfo.activeChallengeId && data.length > 0) {
+          const idx = data.findIndex((c: any) => c.id === sessionInfo.activeChallengeId);
+          if (idx !== -1) {
+            setChallengeIdx(idx);
+          }
+        }
         
-        // Join via socket
+        // Join via socket AFTER challenges are loaded
         if (connected) {
           emit('join:session', { pin, alias, isBeginner, editorMode });
         }
       } catch (err) {
         console.error("Failed to fetch session:", err);
+      } finally {
+        setIsInitializing(false);
       }
     };
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alias, pin, connected]);
 
-  // 2. Socket Listeners
-  on('session:state', (session) => {
-    setSessionStatus(session.status);
-    // Find the active challenge index if admin pushed one
-    if (session.activeChallengeId && challenges.length > 0) {
-      const idx = challenges.findIndex(c => c.id === session.activeChallengeId);
-      if (idx !== -1 && idx !== challengeIdx) {
-        setChallengeIdx(idx);
+  // 2. Socket Listeners — use refs to avoid stale closures
+  on('student:state', useCallback((studentInfo: any) => {
+    useGameStore.setState({ myScore: studentInfo.score, myPiecesUnlocked: studentInfo.piecesUnlocked });
+    // Restore completed challenges from server
+    if (studentInfo.completedChallengeIds && studentInfo.completedChallengeIds.length > 0) {
+      setCompletedSet(new Set<string>(studentInfo.completedChallengeIds));
+    }
+    // Use server's authoritative challenge position (prevents reload cheating)
+    const serverIdx = studentInfo.currentChallengeIndex ?? 0;
+    const totalChallenges = challengesRef.current.length;
+    if (totalChallenges > 0) {
+      if (serverIdx >= totalChallenges) {
+        setIsFinished(true);
+      } else {
+        setChallengeIdx(serverIdx);
       }
     }
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
-  on('challenge:pushed', ({ challengeId }) => {
-    const idx = challenges.findIndex(c => c.id === challengeId);
+  on('session:state', useCallback((session: any) => {
+    setSessionStatus(session.status);
+    if (session.activeChallengeId) {
+      const currentChallenges = challengesRef.current;
+      if (currentChallenges.length > 0) {
+        const idx = currentChallenges.findIndex((c: any) => c.id === session.activeChallengeId);
+        if (idx !== -1) {
+          setChallengeIdx(idx);
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
+
+  on('challenge:pushed', useCallback(({ challengeId, startedAt }: any) => {
+    if (startedAt) {
+      challengeStartTimeRef.current = new Date(startedAt).getTime();
+    } else {
+      challengeStartTimeRef.current = Date.now();
+    }
+    const currentChallenges = challengesRef.current;
+    const idx = currentChallenges.findIndex((c: any) => c.id === challengeId);
     if (idx !== -1) {
       setChallengeIdx(idx);
     }
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
-  on('code:result', ({ output, error, isSuccess, pointsAwarded }) => {
+  on('code:result', useCallback(({ output, error, isSuccess, pointsAwarded }: any) => {
     if (isSuccess) {
-      setConsoleOutput(`✓ ${challenge.expectedOutput}\n\nMission complete! +${pointsAwarded} pts\n\nOutput:\n${output}`);
+      const curChallenges = challengesRef.current;
+      const curIdx = challengeIdxRef.current;
+      const curChallenge = curChallenges[curIdx];
+      const expectedOutput = curChallenge?.expectedOutput || '';
+      
+      setConsoleOutput(`✓ ${expectedOutput}\n\nMission complete! +${pointsAwarded} pts\n\nOutput:\n${output}`);
       setConsoleStatus('success');
-      updateScore(pointsAwarded);
-      unlockPiece();
-      setCompletedSet(prev => new Set(prev).add(challenge.id));
-      trigger('success', { points: String(pointsAwarded) });
+      useGameStore.getState().updateScore(pointsAwarded);
+      useGameStore.getState().unlockPiece();
+      
+      if (curChallenge?.id) {
+        setCompletedSet(prev => {
+          const newSet = new Set(prev).add(curChallenge.id);
+          completedSetRef.current = newSet;
+          return newSet;
+        });
+      }
+      
+      triggerRef.current('success', { points: String(pointsAwarded) });
+      // Auto-advance after a short delay
+      setTimeout(() => {
+        const nextIdx = curIdx + 1;
+        if (curIdx < curChallenges.length - 1) {
+          setChallengeIdx(nextIdx);
+          emit('challenge:advance', { challengeIndex: nextIdx });
+        } else {
+          setIsFinished(true);
+          emit('challenge:advance', { challengeIndex: curChallenges.length });
+        }
+      }, 2500);
     } else {
       setConsoleOutput(`${error || output}\n\nTry again.`);
       setConsoleStatus('error');
-      trigger('fail');
+      triggerRef.current('fail');
     }
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
-  on('game:started', () => {
+  on('game:started', useCallback(({ startedAt, totalTimeLimit: tl }: any) => {
     setSessionStatus('active');
+    const ts = new Date(startedAt).getTime();
+    setSessionStartedAt(ts);
+    if (tl) setTotalTimeLimit(tl);
     setTimerKey(k => k + 1);
-    trigger('challenge_start');
-  });
+    triggerRef.current('challenge_start');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
-  on('game:ended', () => {
-    trigger('success', { points: '0' });
+  on('game:ended', useCallback(() => {
+    triggerRef.current('success', { points: '0' });
     setSessionStatus('ended');
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
-  on('error', ({ message }) => {
+  on('error', useCallback(({ message }: any) => {
     setConsoleOutput(`System Error: ${message}`);
     setConsoleStatus('error');
-    trigger('fail');
-  });
+    triggerRef.current('fail');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
   // Sync store when challenge index changes
   useEffect(() => {
     if (challenges.length > 0) {
       setChallenge(challenges[challengeIdx]);
-      setCode(challenges[challengeIdx].starterCode ?? '');
+      
+      const savedCode = localStorage.getItem(`pcq_code_${pin}_${challenges[challengeIdx].id}`);
+      setCode(savedCode !== null ? savedCode : (challenges[challengeIdx].starterCode ?? ''));
+      
+      const savedBlocks = localStorage.getItem(`pcq_blocks_${pin}_${challenges[challengeIdx].id}`);
+      if (savedBlocks !== null) setBlocksCode(savedBlocks);
       setConsoleOutput('');
       setConsoleStatus('idle');
       setIsExpired(false);
-      setShowExpiredBanner(false);
-      setTimerKey(k => k + 1);
-      challengeStartTimeRef.current = Date.now();
+      setHintIdx(0);
       triggerRef.current('challenge_start');
+      clearLine(); // Clear any persistent hints when switching challenges
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeIdx, challenges]);
@@ -180,24 +271,29 @@ export default function CockpitPage() {
   }, [codeBroadcastEnabled, emit]);
 
   const handleAdvanceChallenge = useCallback(() => {
-    const next = challengeIdx + 1;
-    if (next >= challenges.length) {
-      trigger('success', { points: '0' });
-      setIsFinished(true);
+    if (challengeIdx < challenges.length - 1) {
+      const nextIdx = challengeIdx + 1;
+      setChallengeIdx(nextIdx);
+      emit('challenge:advance', { challengeIndex: nextIdx });
     } else {
-      setChallengeIdx(next);
+      setIsFinished(true);
+      emit('challenge:advance', { challengeIndex: challenges.length }); // mark finished
+      trigger('success', { points: '0' });
     }
-  }, [challengeIdx, trigger, challenges.length]);
+  }, [challengeIdx, trigger, challenges.length, emit]);
 
-  const handleExpire = useCallback(() => {
+  const handleSessionExpire = useCallback(() => {
     if (isExpired) return;
     setIsExpired(true);
-    setShowExpiredBanner(true);
-    setConsoleOutput("⏰ Time's up! Moving to the next challenge…");
+    setConsoleOutput("⏰ Session time is up! Great job, Commander!");
     setConsoleStatus('expired');
     triggerRef.current('fail');
-    setTimeout(() => handleAdvanceChallenge(), 3000);
-  }, [isExpired, handleAdvanceChallenge]);
+    clearLine();
+    setTimeout(() => {
+      setIsFinished(true);
+      emit('challenge:advance', { challengeIndex: challengesRef.current.length });
+    }, 3000);
+  }, [isExpired, clearLine, emit]);
 
   const handleRun = () => {
     if (isExpired || !challenge.id) return;
@@ -287,7 +383,9 @@ export default function CockpitPage() {
               />
             ))}
           </div>
-          <CountdownTimer key={timerKey} seconds={challenge.timeLimit} onExpire={handleExpire} isPaused={sessionStatus === 'waiting'} />
+          {sessionStartedAt && (
+            <CountdownTimer key={timerKey} seconds={Math.max(0, totalTimeLimit - Math.floor((Date.now() - sessionStartedAt) / 1000))} onExpire={handleSessionExpire} isPaused={sessionStatus === 'waiting'} />
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -316,7 +414,7 @@ export default function CockpitPage() {
             variant="primary"
             icon={<ChevronRight className="w-4 h-4" />}
             onClick={handleAdvanceChallenge}
-            disabled={isExpired && !showExpiredBanner}
+            disabled={isExpired}
           >
             {isLastChallenge ? 'FINISH' : 'NEXT'}
           </NeonButton>
@@ -331,26 +429,9 @@ export default function CockpitPage() {
         </div>
       </nav>
 
-      {/* ── EXPIRED BANNER ── */}
-      <AnimatePresence>
-        {showExpiredBanner && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="bg-status-warning/10 border-b border-status-warning/40 px-6 py-2
-                       flex items-center justify-between shrink-0"
-          >
-            <span className="font-display text-sm text-status-warning font-semibold">
-              ⏰ Time's up! Moving to the next challenge in a moment…
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ── MAIN CONTENT ── */}
       <div className="flex-1 flex flex-col lg:flex-row gap-3 p-3 overflow-y-auto lg:overflow-hidden min-h-0">
-        <div className="w-full lg:w-[40%] shrink-0 flex flex-col gap-3 lg:overflow-auto">
+        <div className="w-full lg:w-1/3 xl:w-[400px] lg:min-w-[300px] shrink-0 flex flex-col gap-3 lg:overflow-auto">
           <SpaceBasePlot
             student={{
               id: 'me',
@@ -380,17 +461,20 @@ export default function CockpitPage() {
             </NeonButton>
           </GlassCard>
 
-          <div
-            className="flex-1 min-h-0 rounded-xl overflow-hidden border border-space-700/50"
-            style={{ minHeight: 0, height: '65%' }}
-          >
+          <div className="flex-1 min-h-[300px] lg:min-h-0 rounded-xl overflow-hidden border border-space-700/50 relative">
             {editorMode === 'code' ? (
               <Editor
                 height="100%"
                 defaultLanguage="python"
                 theme="vs-dark"
                 value={code}
-                onChange={(val) => setCode(val ?? '')}
+                onChange={(val) => {
+                  const newCode = val ?? '';
+                  setCode(newCode);
+                  if (challenge?.id) {
+                    localStorage.setItem(`pcq_code_${pin}_${challenge.id}`, newCode);
+                  }
+                }}
                 options={{
                   fontSize: 14,
                   fontFamily: '"JetBrains Mono", monospace',
@@ -407,15 +491,17 @@ export default function CockpitPage() {
                   Loading Blocks…
                 </div>
               }>
-                <BlocklyEditor onChange={setBlocksCode} />
+                <BlocklyEditor onChange={(val) => {
+                  setBlocksCode(val);
+                  if (challenge?.id) {
+                    localStorage.setItem(`pcq_blocks_${pin}_${challenge.id}`, val);
+                  }
+                }} />
               </Suspense>
             )}
           </div>
 
-          <div
-            className="rounded-xl bg-black/80 border border-space-700/50 overflow-hidden"
-            style={{ height: '35%', minHeight: 90 }}
-          >
+          <div className="h-[35vh] lg:h-[250px] xl:h-[300px] rounded-xl overflow-hidden border border-space-700/50 bg-[#0A0A0F] flex flex-col shrink-0 relative">
             <div className="flex items-center justify-between px-3 py-1.5 bg-space-900/60 border-b border-space-700/40">
               <p className="text-xs font-display font-semibold text-white/40 uppercase tracking-widest">Console</p>
               <span className={`text-[10px] font-mono font-bold ${cm.color}`}>{cm.label}</span>
@@ -460,12 +546,25 @@ export default function CockpitPage() {
       </div>
 
       <div className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-30 flex flex-col items-end gap-2 pointer-events-none">
-        <MontyBubble text={cockpitLine} onComplete={clearLine} />
+        <MontyBubble 
+          text={cockpitLine} 
+          onComplete={clearLine}
+          duration={cockpitState === 'hint' ? 0 : 4000}
+        />
         <MontyAvatar state={cockpitState} size={80} />
       </div>
 
       <AnimatePresence>
-        {sessionStatus === 'waiting' && (
+        {isInitializing && (
+          <div className="fixed inset-0 bg-space-950 flex flex-col items-center justify-center relative font-mono text-accent-blue/50 z-[200]">
+            <div className="flex flex-col items-center gap-4 z-10">
+              <img src="/logo.png" alt="Thynkcity" className="h-16 animate-pulse" />
+              <p>Initializing Cockpit...</p>
+            </div>
+          </div>
+        )}
+
+        {sessionStatus === 'waiting' && !isInitializing && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -552,8 +651,8 @@ export default function CockpitPage() {
               </div>
             </div>
             
-            <NeonButton variant="primary" className="mt-8" onClick={() => navigate('/audience')}>
-               Go to Audience View
+            <NeonButton variant="primary" className="mt-8" onClick={() => { reset(); navigate('/'); }}>
+               Back to Login
             </NeonButton>
           </motion.div>
         )}

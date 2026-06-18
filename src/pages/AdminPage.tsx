@@ -38,6 +38,7 @@ export default function AdminPage() {
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
   const [newSessionName, setNewSessionName] = useState('');
   const [newSessionPin, setNewSessionPin] = useState('');
+  const [newSessionTime, setNewSessionTime] = useState(10); // minutes
 
   // Global State (for question bank and practice records)
   const [practiceChallenges, setPracticeChallenges] = useState<any[]>([]);
@@ -139,10 +140,11 @@ export default function AdminPage() {
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const session = await api.sessions.create({ name: newSessionName, pin: newSessionPin });
-      appendLog(`Created session ${session.name}`);
+      const session = await api.sessions.create({ name: newSessionName, pin: newSessionPin, totalTimeLimit: newSessionTime * 60 });
+      appendLog(`Created session ${session.name} (${newSessionTime} min)`);
       setNewSessionName('');
       setNewSessionPin('');
+      setNewSessionTime(10);
       fetchSessions();
     } catch (err: any) {
       if (!err.message?.includes('Session expired')) {
@@ -372,6 +374,10 @@ export default function AdminPage() {
                 <form onSubmit={handleCreateSession} className="flex flex-col gap-3">
                   <input type="text" value={newSessionName} onChange={e => setNewSessionName(e.target.value)} placeholder="Session Name (e.g. Class A)" className={inp} required />
                   <input type="text" value={newSessionPin} onChange={e => setNewSessionPin(e.target.value)} placeholder="4-Digit PIN" maxLength={4} minLength={4} className={inp} required />
+                  <div>
+                    <label className="block text-xs font-body text-white/60 mb-1">Session Duration (minutes)</label>
+                    <input type="number" value={newSessionTime} onChange={e => setNewSessionTime(Number(e.target.value))} className={inp} min={1} max={120} required />
+                  </div>
                   <NeonButton variant="success" type="submit" className="w-full">Create</NeonButton>
                 </form>
               </GlassCard>

@@ -45,6 +45,7 @@ export default function PracticeCockpitPage() {
   const [showExpiredBanner, setShowExpiredBanner] = useState(false);
   const [completedSet, setCompletedSet] = useState<Set<string>>(new Set());
   const [isFinished, setIsFinished] = useState(false);
+  const [sessionScore, setSessionScore] = useState(0);
   const [hintUsed, setHintUsed] = useState(false);
   const stuckTimerRef = useRef<number | null>(null);
   const challengeStartTimeRef = useRef<number>(Date.now());
@@ -77,7 +78,7 @@ export default function PracticeCockpitPage() {
       }
     };
     init();
-  }, [user, practiceSessionId]);
+  }, [user?.id, practiceSessionId]);
 
   // Sync state when challenge index changes
   useEffect(() => {
@@ -92,6 +93,7 @@ export default function PracticeCockpitPage() {
       challengeStartTimeRef.current = Date.now();
       
       triggerRef.current('challenge_start');
+      clearLine();
     }
   }, [challengeIdx, challenges]);
 
@@ -114,6 +116,7 @@ export default function PracticeCockpitPage() {
   }, []);
 
   const handleNextChallenge = () => {
+    clearLine();
     if (challengeIdx < challenges.length - 1) {
       setChallengeIdx(challengeIdx + 1);
     } else {
@@ -155,7 +158,9 @@ export default function PracticeCockpitPage() {
         setConsoleOutput(`✓ ${challenge.expectedOutput}\n\nMission complete! +${res.submission.pointsAwarded} pts\n\nOutput:\n${result.stdout}`);
         setConsoleStatus('success');
         setCompletedSet(prev => new Set(prev).add(challenge.id));
+        setSessionScore(s => s + res.submission.pointsAwarded);
         trigger('success', { points: String(res.submission.pointsAwarded) });
+        checkAuth(); // Update score locally
       } else {
         setConsoleOutput(`${result.stderr || result.stdout}\n\nTry again.`);
         setConsoleStatus('error');
@@ -173,6 +178,7 @@ export default function PracticeCockpitPage() {
     setConsoleStatus('expired');
     setShowExpiredBanner(true);
     trigger('fail');
+    clearLine();
   };
 
   const showNextHint = () => {
@@ -198,7 +204,7 @@ export default function PracticeCockpitPage() {
           <div className="hidden sm:flex items-center gap-2 bg-space-800/80 px-3 py-1 rounded-full border border-space-700/50 shadow-inner">
             <Trophy className="w-4 h-4 text-accent-gold" />
             <span className="font-bold text-accent-gold text-sm drop-shadow-[0_0_8px_rgba(255,191,0,0.5)]">
-              {user?.score || 0} pts
+              {sessionScore} pts
             </span>
           </div>
           
@@ -234,7 +240,7 @@ export default function PracticeCockpitPage() {
         ) : (
           <>
             {/* Left Column */}
-            <div className="w-full lg:w-[400px] xl:w-[450px] shrink-0 flex flex-col border-r border-space-700/50 bg-space-900/40 relative z-20 shadow-[4px_0_24px_rgba(0,0,0,0.4)]">
+            <div className="w-full lg:w-1/3 xl:w-[400px] lg:min-w-[300px] shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-space-700/50 bg-space-900/40 relative z-20 lg:shadow-[4px_0_24px_rgba(0,0,0,0.4)]">
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
             {isFinished ? (
               <GlassCard className="p-8 text-center flex flex-col items-center gap-4">
@@ -256,7 +262,7 @@ export default function PracticeCockpitPage() {
         {/* Center / Editor */}
         <div className="flex-1 flex flex-col min-w-0 bg-space-900 relative">
           {/* Editor Header */}
-          <div className="h-12 border-b border-space-700/50 flex items-center justify-between px-4 bg-space-800/30">
+          <div className="min-h-12 border-b border-space-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:px-4 gap-2 bg-space-800/30">
             <ModeToggle />
             {!isFinished && (
               <div className="flex items-center gap-4">
@@ -267,6 +273,13 @@ export default function PracticeCockpitPage() {
                     onExpire={handleTimeout} 
                   />
                 )}
+                <button 
+                  onClick={handleNextChallenge}
+                  disabled={consoleStatus === 'running' || isExpired}
+                  className="px-4 py-2 text-sm font-bold text-white/50 hover:text-white transition-colors disabled:opacity-50"
+                >
+                  SKIP
+                </button>
                 <NeonButton 
                   variant="primary"
                   className="px-6 shadow-[0_0_15px_rgba(0,240,255,0.3)] hover:shadow-[0_0_25px_rgba(0,240,255,0.5)]"
@@ -281,39 +294,40 @@ export default function PracticeCockpitPage() {
           </div>
 
           {/* Code Area */}
-          <div className="flex-1 relative">
-            {!isFinished && editorMode === 'blocks' && (
-              <Suspense fallback={<div className="h-full flex items-center justify-center text-accent-blue/50">Loading Blockly...</div>}>
-                <BlocklyEditor
-                  onChange={handleBlocksChange}
+          <div className="flex-1 min-h-0 relative">
+            {!isFinished && (
+              editorMode === 'code' ? (
+                <Editor
+                  height="100%"
+                  defaultLanguage="python"
+                  theme="vs-dark"
+                  value={code}
+                  onChange={handleEditorChange}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 15,
+                    fontFamily: '"Fira Code", monospace',
+                    padding: { top: 24, bottom: 24 },
+                    scrollBeyondLastLine: false,
+                    smoothScrolling: true,
+                    cursorBlinking: "smooth",
+                    cursorSmoothCaretAnimation: "on",
+                    formatOnPaste: true,
+                    readOnly: consoleStatus === 'running' || isExpired || completedSet.has(challenge.id),
+                  }}
                 />
-              </Suspense>
-            )}
-            {!isFinished && editorMode === 'code' && (
-              <Editor
-                height="100%"
-                defaultLanguage="python"
-                theme="vs-dark"
-                value={code}
-                onChange={handleEditorChange}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 15,
-                  fontFamily: '"Fira Code", monospace',
-                  padding: { top: 24, bottom: 24 },
-                  scrollBeyondLastLine: false,
-                  smoothScrolling: true,
-                  cursorBlinking: "smooth",
-                  cursorSmoothCaretAnimation: "on",
-                  formatOnPaste: true,
-                  readOnly: consoleStatus === 'running' || isExpired || completedSet.has(challenge.id),
-                }}
-              />
+              ) : (
+                <Suspense fallback={<div className="h-full flex items-center justify-center text-accent-blue/50">Loading Blockly...</div>}>
+                  <BlocklyEditor
+                    onChange={handleBlocksChange}
+                  />
+                </Suspense>
+              )
             )}
           </div>
 
           {/* Console Output */}
-          <div className="h-[250px] sm:h-[300px] border-t border-space-700/50 bg-[#0A0A0F] flex flex-col relative z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.4)]">
+          <div className="h-[30vh] sm:h-[250px] border-t border-space-700/50 bg-[#0A0A0F] flex flex-col relative z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.4)]">
             <div className="h-8 bg-space-800/80 border-b border-space-700/50 px-4 flex items-center justify-between">
               <span className="text-xs text-white/50 font-bold tracking-wider">TERMINAL</span>
               {consoleStatus === 'running' && (
@@ -388,6 +402,7 @@ export default function PracticeCockpitPage() {
         <MontyBubble 
           text={cockpitLine} 
           onComplete={clearLine}
+          duration={cockpitState === 'hint' ? 0 : 4000}
         />
         <div className="mt-4 flex justify-end pointer-events-auto cursor-pointer drop-shadow-[0_0_25px_rgba(0,240,255,0.4)]" onClick={() => trigger('poke')}>
           <MontyAvatar state={cockpitState} />

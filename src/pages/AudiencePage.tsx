@@ -181,7 +181,7 @@ export default function AudiencePage() {
           </div>
         </div>
 
-        <div className="w-full lg:w-96 xl:w-[450px] flex flex-col gap-3 p-3 shrink-0 lg:shrink lg:overflow-y-auto custom-scrollbar border-l-0 lg:border-l border-space-700/30 bg-space-900/20">
+        <div className="w-full lg:w-1/3 xl:w-[450px] lg:min-w-[300px] flex flex-col gap-3 p-3 shrink-0 lg:shrink lg:overflow-y-auto custom-scrollbar border-l-0 lg:border-l border-space-700/30 bg-space-900/20">
           <div className="shrink-0">
             <LeaderboardPin students={students} />
           </div>

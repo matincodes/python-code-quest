@@ -56,13 +56,27 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
       }
     }
 
-    // If we're here, refresh failed or this WAS a refresh/login request
+    // If it was a login request, DO NOT redirect or clear state. Just throw the original error.
+    if (endpoint.includes('login')) {
+      throw new Error(data.error?.message || data.error || "Invalid credentials");
+    }
+
+    // If we're here, refresh failed or this WAS a refresh request
     const { useUserStore } = await import('../store/userStore');
-    useUserStore.getState().reset();
+    const { useStudentAuthStore } = await import('../store/studentAuthStore');
     
-    // Only redirect if not already on the admin page to prevent infinite loops
-    if (window.location.pathname !== '/admin') {
-      window.location.href = '/admin';
+    useUserStore.getState().reset();
+    useStudentAuthStore.getState().logout();
+    
+    // Redirect based on current path to prevent infinite loops
+    if (window.location.pathname.startsWith('/student')) {
+      if (window.location.pathname !== '/student/login') {
+        window.location.href = '/student/login';
+      }
+    } else {
+      if (window.location.pathname !== '/admin') {
+        window.location.href = '/admin';
+      }
     }
     
     // Return a dummy error so the UI handles it smoothly without generic alerts
@@ -127,5 +141,6 @@ export const api = {
     start: () => request("/practice/sessions", { method: "POST" }),
     submit: (id: string, data: any) => request(`/practice/sessions/${id}/submit`, { method: "POST", body: JSON.stringify(data) }),
     end: (id: string) => request(`/practice/sessions/${id}/end`, { method: "POST" }),
+    getHistory: () => request("/practice/sessions/history"),
   }
 };

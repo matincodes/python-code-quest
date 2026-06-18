@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CountdownTimerProps {
@@ -14,16 +14,21 @@ export default function CountdownTimer({ seconds, onExpire, isPaused = false }: 
     setRemaining(seconds);
   }, [seconds]);
 
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
+
   useEffect(() => {
     if (isPaused) return;
     
     if (remaining <= 0) {
-      onExpire?.();
+      onExpireRef.current?.();
       return;
     }
     const id = setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => clearTimeout(id);
-  }, [remaining, onExpire, isPaused]);
+  }, [remaining, isPaused]);
 
   const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
   const secs = String(remaining % 60).padStart(2, '0');

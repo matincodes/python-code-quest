@@ -10,9 +10,13 @@ const StudentDashboardPage: React.FC = () => {
   const { user, logout, checkAuth } = useStudentAuthStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     checkAuth().finally(() => setLoading(false));
+    api.practiceSessions.getHistory().then(res => {
+      setHistory(res.sessions || []);
+    }).catch(console.error);
   }, []);
 
   if (loading) {
@@ -39,11 +43,11 @@ const StudentDashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-space-900 bg-premium-gradient p-8 text-white font-mono">
+    <div className="min-h-screen bg-space-900 bg-premium-gradient p-4 sm:p-8 text-white font-mono">
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header */}
-        <div className="flex justify-between items-center bg-space-800/50 p-6 rounded-2xl border border-white/10 backdrop-blur-md">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-space-800/50 p-6 rounded-2xl border border-white/10 backdrop-blur-md">
           <div>
             <h1 className="font-display font-bold text-3xl text-accent-blue">Welcome, {user.username}</h1>
             <p className="text-white/50 text-sm mt-1">{user.firstName} {user.lastName}</p>
@@ -80,8 +84,25 @@ const StudentDashboardPage: React.FC = () => {
               <History className="w-5 h-5 text-accent-purple" />
               <h2 className="font-display font-bold text-xl">Recent Activity</h2>
             </div>
-            <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
-              <p>Activity history coming soon...</p>
+            <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar">
+              {history.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-white/30 text-sm h-full">
+                  <p>No activity history yet.</p>
+                </div>
+              ) : (
+                history.map((session, i) => (
+                  <div key={session.id || i} className="bg-space-800/50 p-3 rounded-lg border border-space-700/50 flex justify-between items-center text-sm">
+                    <div>
+                      <p className="text-white/80 font-bold">Practice Session</p>
+                      <p className="text-white/40 text-xs">{new Date(session.startedAt).toLocaleDateString()} at {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-right">
+                      <div className="text-status-success font-bold text-xs">{session.submissions?.filter((s:any)=>s.isCorrect).length || 0} solved</div>
+                      <div className="text-accent-gold font-bold">+{session.score || 0} pts</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </GlassCard>
         </div>

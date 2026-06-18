@@ -88,7 +88,11 @@ export default function LobbyPage() {
     setIsSubmitting(true);
     try {
       // Validate PIN with backend
-      await api.sessions.getByPin(pin);
+      const session = await api.sessions.getByPin(pin);
+      
+      if (session.status === 'ended') {
+        throw new Error('This session has ended.');
+      }
       
       setAlias(alias.trim());
       setPin(pin);
