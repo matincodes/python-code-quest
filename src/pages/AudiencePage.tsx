@@ -15,7 +15,7 @@ import MontyBubble from '../components/monty/MontyBubble';
 import GlassCard from '../components/shared/GlassCard';
 
 export default function AudiencePage() {
-  const { students, setStudents, currentChallenge, setChallenge, updateStudent, recordLatestSolve, setLiveCodeFeed, pushScoreSnapshot, recordCompletion, completionTimes } = useGameStore();
+  const { students, setStudents, currentChallenge, setChallenge, updateStudent, recordLatestSolve, setLiveCodeFeed, pushScoreSnapshot, recordCompletion, completionTimes, scoreHistory } = useGameStore();
   const { cockpitState, narratorLine, setNarratorLine } = useMontyStore();
   const { trigger } = useMonty();
   const { connected, emit, on } = useSocket();
@@ -199,7 +199,7 @@ export default function AudiencePage() {
 
         <div className="w-full lg:w-1/3 xl:w-[450px] lg:min-w-[300px] flex flex-col gap-3 p-3 shrink-0 lg:shrink lg:overflow-y-auto custom-scrollbar border-l-0 lg:border-l border-space-700/30 bg-space-900/20">
           <div className="shrink-0">
-            <LeaderboardPin students={students} completionTimes={completionTimes} totalChallenges={totalChallenges} />
+            <LeaderboardPin students={students} completionTimes={completionTimes} scoreHistory={scoreHistory} totalChallenges={totalChallenges} />
           </div>
           <div className="flex-1 min-h-[300px]">
             <SpotlightPanel totalChallenges={totalChallenges} onToggleFullscreen={() => toggleFullscreen('spotlight')} />
