@@ -71,11 +71,18 @@ export default function LobbyPage() {
     return () => clearInterval(id);
   }, []);
 
+  const [skillError, setSkillError] = useState('');
+
   const validate = () => {
     const errs: typeof errors = {};
     if (!/^\d{4}$/.test(pin)) errs.pin = 'Mission code must be exactly 4 digits.';
     if (alias.trim().length < 2 || alias.trim().length > 12) errs.alias = 'Alias must be 2–12 characters.';
     setErrors(errs);
+    if (isBeginner === null) {
+      setSkillError('Please select your skill level.');
+      return false;
+    }
+    setSkillError('');
     return Object.keys(errs).length === 0;
   };
 
@@ -180,7 +187,7 @@ export default function LobbyPage() {
                   <button
                     key={String(value)}
                     type="button"
-                    onClick={() => setIsBeginnerValue(value)}
+                    onClick={() => { setIsBeginnerValue(value); setSkillError(''); }}
                     className={`flex-1 py-2 rounded-xl text-sm font-body border transition-colors ${
                       isBeginner === value
                         ? 'border-accent-gold bg-accent-gold/20 text-accent-gold'
@@ -191,6 +198,7 @@ export default function LobbyPage() {
                   </button>
                 ))}
               </div>
+              {skillError && <p className="text-status-danger text-xs mt-1">{skillError}</p>}
             </div>
 
             <NeonButton

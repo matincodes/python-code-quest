@@ -124,16 +124,22 @@ export default function AudiencePage() {
       <div className="min-h-screen bg-premium-gradient p-8">
         <h1 className="font-display font-bold text-2xl text-accent-gold mb-8">Audience View - Select Session</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sessions.map(s => (
+          {sessions.filter(s => s.status !== 'ended').map(s => (
             <GlassCard key={s.id} className="!p-6 flex flex-col gap-4 cursor-pointer hover:border-accent-gold transition-colors" onClick={() => setSelectedPin(s.pin)}>
               <div className="flex justify-between items-start">
                 <h3 className="font-display font-bold text-lg text-white">{s.name}</h3>
                 <span className="bg-space-800 text-white/60 text-xs px-2 py-1 rounded font-mono">PIN: {s.pin}</span>
               </div>
-              <p className="text-sm text-white/50">{s._count?.students || 0} hackers online</p>
+              <div className="flex items-center gap-2">
+                <span className={`w-1.5 h-1.5 rounded-full ${s.status === 'active' ? 'bg-status-success animate-pulse' : 'bg-space-600'}`} />
+                <span className="text-xs text-white/40 font-mono uppercase">{s.status}</span>
+                <span className="text-sm text-white/50 ml-auto">{s._count?.students || 0} hackers</span>
+              </div>
             </GlassCard>
           ))}
-          {sessions.length === 0 && <p className="text-white/50">No active sessions found.</p>}
+          {sessions.filter(s => s.status !== 'ended').length === 0 && (
+            <p className="text-white/50">No active sessions found.</p>
+          )}
         </div>
       </div>
     );

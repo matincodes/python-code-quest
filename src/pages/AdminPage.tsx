@@ -109,17 +109,16 @@ export default function AdminPage() {
   // Socket listeners for live updates
   on('student:joined', (student) => {
     appendLog(`Student joined: ${student.alias}`);
-    fetchSessionData(); // Refresh list
+    setStudents((prev) => [...prev.filter((s) => s.id !== student.id), student]);
   });
-  on('student:left', () => {
-    fetchSessionData();
+  on('student:left', (studentId) => {
+    setStudents((prev) => prev.map((s) => s.id === studentId ? { ...s, status: 'disconnected' } : s));
   });
-  on('student:updated', () => {
-    fetchSessionData();
+  on('student:updated', (student) => {
+    setStudents((prev) => prev.map((s) => s.id === student.id ? { ...s, ...student } : s));
   });
   on('solve:latest', (data) => {
     appendLog(`${data.alias} solved a mission! (+${data.points} pts)`);
-    fetchSessionData();
   });
 
 

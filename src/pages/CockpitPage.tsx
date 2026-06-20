@@ -41,6 +41,7 @@ export default function CockpitPage() {
   const [consoleOutput, setConsoleOutput] = useState('');
   const [consoleStatus, setConsoleStatus] = useState<ConsoleStatus>('idle');
   const [showHintModal, setShowHintModal] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
   const [hintIdx, setHintIdx] = useState(0);
   const [timerKey, setTimerKey] = useState(0);
   const [isExpired, setIsExpired] = useState(false);
@@ -233,7 +234,7 @@ export default function CockpitPage() {
       setCode(savedCode !== null ? savedCode : (challenges[challengeIdx].starterCode ?? ''));
       
       const savedBlocks = localStorage.getItem(`pcq_blocks_${pin}_${challenges[challengeIdx].id}`);
-      if (savedBlocks !== null) setBlocksCode(savedBlocks);
+      setBlocksCode(savedBlocks !== null ? savedBlocks : '');
       setConsoleOutput('');
       setConsoleStatus('idle');
       setIsExpired(false);
@@ -342,10 +343,27 @@ export default function CockpitPage() {
   };
   const cm = consoleMeta[consoleStatus];
 
+  if (challenges.length === 0 && !isInitializing) {
+    return (
+      <div className="min-h-screen bg-premium-gradient flex flex-col items-center justify-center gap-4 overflow-hidden p-8 text-center">
+        <h2 className="text-status-warning font-display text-2xl">No Missions Loaded</h2>
+        <p className="font-body text-white/50 max-w-sm">
+          The Game Master hasn't added any missions to this session yet. Hang tight — they'll appear automatically when the session is set up.
+        </p>
+        <button
+          onClick={() => { reset(); navigate('/'); }}
+          className="mt-4 text-sm text-white/40 hover:text-white underline transition-colors"
+        >
+          Back to lobby
+        </button>
+      </div>
+    );
+  }
+
   if (challenges.length === 0) {
     return (
       <div className="min-h-screen bg-premium-gradient flex flex-col items-center justify-center overflow-hidden">
-         <h2 className="text-accent-gold font-display text-2xl animate-pulse">Loading Mission Modules...</h2>
+        <h2 className="text-accent-gold font-display text-2xl animate-pulse">Loading Mission Modules...</h2>
       </div>
     );
   }
@@ -413,7 +431,7 @@ export default function CockpitPage() {
           <NeonButton
             variant="primary"
             icon={<ChevronRight className="w-4 h-4" />}
-            onClick={handleAdvanceChallenge}
+            onClick={() => alreadySolved ? handleAdvanceChallenge() : setShowSkipModal(true)}
             disabled={isExpired}
           >
             {isLastChallenge ? 'FINISH' : 'NEXT'}
@@ -693,6 +711,52 @@ export default function CockpitPage() {
                   </NeonButton>
                   <NeonButton variant="primary" onClick={() => setShowHintModal(false)} className="flex-1">
                     Cancel
+                  </NeonButton>
+                </div>
+              </GlassCard>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSkipModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
+            onClick={() => setShowSkipModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm"
+            >
+              <GlassCard className="!p-8">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-status-danger/20 border border-status-danger/40
+                                   flex items-center justify-center">
+                    <ChevronRight className="w-5 h-5 text-status-danger" />
+                  </div>
+                  <h3 className="font-display font-bold text-lg text-white">
+                    {isLastChallenge ? 'Finish without solving?' : 'Skip this mission?'}
+                  </h3>
+                </div>
+                <p className="font-body text-sm text-white/60 mb-6">
+                  You haven't solved this mission yet. {isLastChallenge ? 'Finishing' : 'Skipping'} means
+                  you <span className="text-status-danger font-semibold">won't earn the points</span> for it.
+                  Are you sure?
+                </p>
+                <div className="flex gap-3">
+                  <NeonButton variant="danger" onClick={() => { setShowSkipModal(false); handleAdvanceChallenge(); }} className="flex-1">
+                    {isLastChallenge ? 'Yes, finish' : 'Yes, skip it'}
+                  </NeonButton>
+                  <NeonButton variant="primary" onClick={() => setShowSkipModal(false)} className="flex-1">
+                    Keep trying
                   </NeonButton>
                 </div>
               </GlassCard>

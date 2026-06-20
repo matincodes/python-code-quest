@@ -334,7 +334,35 @@ socket.on('disconnect', () => handleStudentLeave(socket.id));
 
 ---
 
-## 5. Admin-Triggered Events (HTTP or Socket)
+## 5. Admin Socket Listener
+
+### 5.0 `join:admin`  ← from AdminPage
+
+```ts
+socket.on('join:admin', ({ pin }: { pin: string }) => {
+  socket.join(`audience:${pin}`); // admins watch the same audience room
+  socket.join(`admin:${pin}`);
+
+  // Send current session snapshot
+  const session = await prisma.session.findUnique({ where: { pin } });
+  socket.emit('session:state', {
+    status: session.status,
+    activeChallengeId: session.activeChallengeId,
+  });
+
+  // Send current student list
+  const studentsInSession = [...connectedStudents.values()].filter(s => s.pin === pin);
+  for (const s of studentsInSession) {
+    socket.emit('student:joined', toStudentObject(s));
+  }
+});
+```
+
+The admin joins both the audience room (to receive live updates) and a separate admin room (for future admin-only broadcasts).
+
+---
+
+## 6. Admin-Triggered Events (HTTP or Socket)
 
 These are fired by the instructor from the admin/cockpit panel.
 
