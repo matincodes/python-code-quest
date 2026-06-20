@@ -103,7 +103,9 @@ export default function LeaderboardPin({ students, completionTimes = {}, totalCh
               </span>
 
               {finished && (
-                <CheckCircle2 className="w-3 h-3 text-status-success shrink-0" title={finishTs ? `Finished at ${formatTime(finishTs)}` : 'Finished'} />
+                <span title={finishTs ? `Finished at ${formatTime(finishTs)}` : 'Finished'}>
+                  <CheckCircle2 className="w-3 h-3 text-status-success shrink-0" />
+                </span>
               )}
 
               <div className="flex flex-col items-end shrink-0 min-w-[40px]">
