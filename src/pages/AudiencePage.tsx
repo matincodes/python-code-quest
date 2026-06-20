@@ -46,6 +46,9 @@ export default function AudiencePage() {
         }
         const sts = await api.students.getBySession(selectedPin);
         setStudents(sts);
+        sts.forEach((s: any) => {
+          if (s.piecesUnlocked >= chs.length) recordCompletion(s.id);
+        });
       });
 
       if (connected) {

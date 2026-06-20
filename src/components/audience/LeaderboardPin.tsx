@@ -108,18 +108,18 @@ export default function LeaderboardPin({ students, completionTimes = {}, totalCh
                 </span>
               )}
 
-              <div className="flex flex-col items-end shrink-0 min-w-[40px]">
+              <div className="flex flex-col items-end shrink-0">
                 <motion.span
                   key={student.score}
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 0.3 }}
                   className="font-mono text-xs font-bold text-status-warning leading-none"
                 >
-                  {student.score}
+                  {student.score} pts
                 </motion.span>
-                {finished && finishTs && (
-                  <span className="font-mono text-[9px] text-status-success/70 leading-none mt-0.5">
-                    {formatTime(finishTs)}
+                {finished && (
+                  <span className="font-mono text-[10px] text-status-success leading-none mt-0.5">
+                    {finishTs ? formatTime(finishTs) : '✓'}
                   </span>
                 )}
               </div>
