@@ -15,7 +15,7 @@ import MontyBubble from '../components/monty/MontyBubble';
 import GlassCard from '../components/shared/GlassCard';
 
 export default function AudiencePage() {
-  const { students, setStudents, currentChallenge, setChallenge, updateStudent, recordLatestSolve, setLiveCodeFeed, pushScoreSnapshot } = useGameStore();
+  const { students, setStudents, currentChallenge, setChallenge, updateStudent, recordLatestSolve, setLiveCodeFeed, pushScoreSnapshot, recordCompletion, completionTimes } = useGameStore();
   const { cockpitState, narratorLine, setNarratorLine } = useMontyStore();
   const { trigger } = useMonty();
   const { connected, emit, on } = useSocket();
@@ -58,6 +58,7 @@ export default function AudiencePage() {
   on('student:joined', (student) => {
     setStudents([...useGameStore.getState().students.filter(s => s.id !== student.id), student]);
     pushScoreSnapshot(student.id, student.score);
+    if (student.piecesUnlocked >= totalChallenges) recordCompletion(student.id);
   });
   
   on('student:left', (studentId) => {
@@ -67,6 +68,7 @@ export default function AudiencePage() {
   on('student:updated', (student) => {
     updateStudent(student.id, student);
     pushScoreSnapshot(student.id, student.score);
+    if (student.piecesUnlocked >= totalChallenges) recordCompletion(student.id);
   });
 
   on('session:state', async (session) => {
@@ -194,7 +196,7 @@ export default function AudiencePage() {
 
         <div className="w-full lg:w-1/3 xl:w-[450px] lg:min-w-[300px] flex flex-col gap-3 p-3 shrink-0 lg:shrink lg:overflow-y-auto custom-scrollbar border-l-0 lg:border-l border-space-700/30 bg-space-900/20">
           <div className="shrink-0">
-            <LeaderboardPin students={students} />
+            <LeaderboardPin students={students} completionTimes={completionTimes} totalChallenges={totalChallenges} />
           </div>
           <div className="flex-1 min-h-[300px]">
             <SpotlightPanel totalChallenges={totalChallenges} onToggleFullscreen={() => toggleFullscreen('spotlight')} />

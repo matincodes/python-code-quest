@@ -126,16 +126,30 @@ export default function SpaceBasePlot({ student, isLeader = false, totalChalleng
   const visualPieces = getVisualPieces(student.piecesUnlocked, totalChallenges);
   const pieces = BASE_PIECES.slice(0, visualPieces);
   const isLaunching = visualPieces >= BASE_PIECES.length;
+  const isFinished = student.piecesUnlocked >= totalChallenges;
   const plotStatus: PlotStatus = student.plotStatus ?? (student.status === 'disconnected' ? 'awaiting' : 'idle');
 
   return (
-    <div className={`relative flex flex-col bg-space-900/40 border rounded-2xl p-3 gap-2 transition-shadow ${isLeader ? 'border-status-warning/50 shadow-gold-sm' : 'border-space-700/40'
-      }`}>
+    <div className={`relative flex flex-col bg-space-900/40 border rounded-2xl p-3 gap-2 transition-shadow ${
+      isFinished ? 'border-status-success/50 shadow-[0_0_12px_rgba(74,222,128,0.15)]' :
+      isLeader ? 'border-status-warning/50 shadow-gold-sm' : 'border-space-700/40'
+    }`}>
 
       {/* ── Status chip — absolutely positioned top-right ── */}
       <div className="absolute top-2 right-2 z-10">
         <AnimatePresence mode="wait">
-          <StatusChip key={plotStatus} status={plotStatus} />
+          {isFinished ? (
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-display font-bold bg-status-success/20 border border-status-success/40 text-status-success"
+            >
+              ✓ Done
+            </motion.div>
+          ) : (
+            <StatusChip key={plotStatus} status={plotStatus} />
+          )}
         </AnimatePresence>
       </div>
 
@@ -197,6 +211,22 @@ export default function SpaceBasePlot({ student, isLeader = false, totalChalleng
           />
         ))}
       </div>
+
+      {/* Done banner */}
+      <AnimatePresence>
+        {isFinished && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-center gap-1.5 py-1 rounded-lg bg-status-success/10 border border-status-success/20"
+          >
+            <span className="text-[10px]">🏁</span>
+            <span className="font-display font-bold text-[10px] text-status-success tracking-widest uppercase">
+              Mission Complete
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

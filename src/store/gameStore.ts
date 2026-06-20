@@ -48,6 +48,9 @@ interface GameState {
   // Live Code (Phase C)
   liveCodeFeed: LiveCodeFeed | null;
 
+  // Completion tracking (timestamp when student finished all challenges)
+  completionTimes: Record<string, number>;
+
   // Actions
   setSessionStatus: (status: 'waiting' | 'active' | 'ended') => void;
   setChallenge: (challenge: Challenge) => void;
@@ -61,6 +64,7 @@ interface GameState {
   recordLatestSolve: (solve: LatestSolve) => void;
   pushScoreSnapshot: (studentId: string, score: number) => void;
   setLiveCodeFeed: (feed: LiveCodeFeed | null) => void;
+  recordCompletion: (studentId: string) => void;
   reset: () => void;
 }
 
@@ -83,6 +87,8 @@ export const useGameStore = create<GameState>((set) => ({
   
   // Live Code defaults
   liveCodeFeed: null,
+
+  completionTimes: {},
 
   setSessionStatus: (sessionStatus) => set({ sessionStatus }),
   setChallenge: (currentChallenge) => set({ currentChallenge }),
@@ -115,6 +121,13 @@ export const useGameStore = create<GameState>((set) => ({
     
   setLiveCodeFeed: (liveCodeFeed) => set({ liveCodeFeed }),
 
+  recordCompletion: (studentId) =>
+    set((s) => ({
+      completionTimes: s.completionTimes[studentId]
+        ? s.completionTimes
+        : { ...s.completionTimes, [studentId]: Date.now() },
+    })),
+
   reset: () =>
     set({
       sessionStatus: 'waiting',
@@ -128,5 +141,6 @@ export const useGameStore = create<GameState>((set) => ({
       latestSolve: null,
       scoreHistory: {},
       liveCodeFeed: null,
+      completionTimes: {},
     }),
 }));
