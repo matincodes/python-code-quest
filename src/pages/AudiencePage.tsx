@@ -15,7 +15,7 @@ import MontyBubble from '../components/monty/MontyBubble';
 import GlassCard from '../components/shared/GlassCard';
 
 export default function AudiencePage() {
-  const { students, setStudents, currentChallenge, setChallenge, updateStudent, recordLatestSolve, setLiveCodeFeed } = useGameStore();
+  const { students, setStudents, currentChallenge, setChallenge, updateStudent, recordLatestSolve, setLiveCodeFeed, pushScoreSnapshot } = useGameStore();
   const { cockpitState, narratorLine, setNarratorLine } = useMontyStore();
   const { trigger } = useMonty();
   const { connected, emit, on } = useSocket();
@@ -56,6 +56,7 @@ export default function AudiencePage() {
   // Socket listeners for live updates
   on('student:joined', (student) => {
     setStudents([...useGameStore.getState().students.filter(s => s.id !== student.id), student]);
+    pushScoreSnapshot(student.id, student.score);
   });
   
   on('student:left', (studentId) => {
@@ -64,6 +65,7 @@ export default function AudiencePage() {
 
   on('student:updated', (student) => {
     updateStudent(student.id, student);
+    pushScoreSnapshot(student.id, student.score);
   });
 
   on('session:state', async (session) => {
@@ -110,6 +112,7 @@ export default function AudiencePage() {
   on('game:reset', () => {
     const sts = useGameStore.getState().students.map(s => ({ ...s, score: 0, piecesUnlocked: 0 }));
     setStudents(sts);
+    sts.forEach(s => pushScoreSnapshot(s.id, 0));
   });
 
   const toggleFullscreen = (panel: 'spotlight' | 'liveCam') => {
