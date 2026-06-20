@@ -22,6 +22,7 @@ export default function AudiencePage() {
 
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
+  const [selectedSessionName, setSelectedSessionName] = useState<string | null>(null);
   const [totalChallenges, setTotalChallenges] = useState(1);
 
   const [fullscreenPanel, setFullscreenPanel] = useState<'spotlight' | 'liveCam' | null>(null);
@@ -125,7 +126,7 @@ export default function AudiencePage() {
         <h1 className="font-display font-bold text-2xl text-accent-gold mb-8">Audience View - Select Session</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sessions.filter(s => s.status !== 'ended').map(s => (
-            <GlassCard key={s.id} className="!p-6 flex flex-col gap-4 cursor-pointer hover:border-accent-gold transition-colors" onClick={() => setSelectedPin(s.pin)}>
+            <GlassCard key={s.id} className="!p-6 flex flex-col gap-4 cursor-pointer hover:border-accent-gold transition-colors" onClick={() => { setSelectedPin(s.pin); setSelectedSessionName(s.name); }}>
               <div className="flex justify-between items-start">
                 <h3 className="font-display font-bold text-lg text-white">{s.name}</h3>
                 <span className="bg-space-800 text-white/60 text-xs px-2 py-1 rounded font-mono">PIN: {s.pin}</span>
@@ -165,7 +166,7 @@ export default function AudiencePage() {
           <img src="/logo.png" alt="Thynkcity" className="h-6 object-contain" />
           <span className="font-display font-bold text-base sm:text-lg text-accent-gold whitespace-nowrap ml-2">CODE QUEST</span>
           <span className="text-white/20 text-sm hidden sm:inline">·</span>
-          <span className="font-body text-sm text-white/50">Live Broadcast (Session: {selectedPin})</span>
+          <span className="font-body text-sm text-white/50">Live Broadcast — {selectedSessionName ?? selectedPin}</span>
           <span className="font-mono text-xs text-white/30 sm:ml-2">{count} hackers</span>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
