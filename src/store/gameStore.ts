@@ -24,6 +24,7 @@ export interface LatestSolve {
 
 export interface LiveCodeFeed {
   studentId: string;
+  alias?: string;
   code: string;
   mission: string;
   cursorLine: number;

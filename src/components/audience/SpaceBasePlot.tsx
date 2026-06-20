@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pencil, Brain, CheckCircle2, XCircle, Lightbulb, Clock, Loader2 } from 'lucide-react';
 import type { Student, PlotStatus } from '../../data/mockStudents';
+import { getVisualPieces } from '../../utils/pieces';
 
 interface SpaceBasePlotProps {
   student: Student;
@@ -47,7 +48,7 @@ const shakeVariants = {
   shake: { x: [0, -4, 4, -4, 4, 0], transition: { duration: 0.4 } },
 };
 
-function PieceShape({ shape, color, idx }: { shape: string; color: string; idx: number }) {
+function PieceShape({ shape, color }: { shape: string; color: string }) {
   const w = 80;
   switch (shape) {
     case 'rect':
@@ -87,7 +88,7 @@ function PieceShape({ shape, color, idx }: { shape: string; color: string; idx: 
     case 'rocket':
       return (
         <>
-          <polygon points={`40,0 30,${idx * 0},50,${idx * 0}`} fill={color} />
+          <polygon points="40,0 30,8 50,8" fill={color} />
           <rect x={33} y={8} width={14} height={28} rx={4} fill={color} />
           <polygon points="33,36 26,48 40,42" fill="#FFB347" opacity={0.8} />
           <polygon points="47,36 54,48 40,42" fill="#FFB347" opacity={0.8} />
@@ -122,8 +123,9 @@ function StatusChip({ status }: { status: PlotStatus }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SpaceBasePlot({ student, isLeader = false, totalChallenges = 9 }: SpaceBasePlotProps) {
-  const pieces = BASE_PIECES.slice(0, Math.min(student.piecesUnlocked, BASE_PIECES.length));
-  const isLaunching = student.piecesUnlocked >= 7;
+  const visualPieces = getVisualPieces(student.piecesUnlocked, totalChallenges);
+  const pieces = BASE_PIECES.slice(0, visualPieces);
+  const isLaunching = visualPieces >= BASE_PIECES.length;
   const plotStatus: PlotStatus = student.plotStatus ?? (student.status === 'disconnected' ? 'awaiting' : 'idle');
 
   return (
@@ -155,7 +157,7 @@ export default function SpaceBasePlot({ student, isLeader = false, totalChalleng
         <div className="absolute bottom-0 left-2 right-2 h-1 rounded-full bg-space-700/50" />
         <div className="relative flex flex-col-reverse items-center pb-1" style={{ width: 80 }}>
           <AnimatePresence>
-            {pieces.map((piece, idx) => (
+            {pieces.map((piece) => (
               <motion.svg
                 key={piece.id}
                 variants={pieceVariants}
@@ -166,7 +168,7 @@ export default function SpaceBasePlot({ student, isLeader = false, totalChalleng
                 className="overflow-visible"
                 style={{ marginTop: -2 }}
               >
-                <PieceShape shape={piece.shape} color={piece.color} idx={idx} />
+                <PieceShape shape={piece.shape} color={piece.color} />
               </motion.svg>
             ))}
           </AnimatePresence>
@@ -191,8 +193,7 @@ export default function SpaceBasePlot({ student, isLeader = false, totalChalleng
         {Array.from({ length: totalChallenges }).map((_, i) => (
           <span
             key={i}
-            className={`w-1.5 h-1.5 rounded-full transition-colors ${i < student.piecesUnlocked ? 'bg-accent-gold' : 'bg-space-700'
-              }`}
+            className={`w-1.5 h-1.5 rounded-full transition-colors ${i < student.piecesUnlocked ? 'bg-accent-gold' : 'bg-space-700'}`}
           />
         ))}
       </div>

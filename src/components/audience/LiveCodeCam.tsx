@@ -15,53 +15,69 @@ export default function LiveCodeCam({ isFullscreen, onToggleFullscreen }: LiveCo
   const students = useGameStore((s) => s.students);
   const { alias: myAlias, codeBroadcastEnabled } = useUserStore();
 
-  if (!liveCodeFeed) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 h-full rounded-2xl border border-space-700/30 bg-space-900/30 p-4">
-        <Code2 className="w-6 h-6 text-space-700" />
-        <p className="font-display text-xs text-white/20 uppercase tracking-widest text-center">
-          Live Code Cam<br />
-          <span className="text-[10px] normal-case font-body">(Awaiting feed)</span>
-        </p>
-      </div>
-    );
-  }
+  const student = liveCodeFeed
+    ? students.find((s) => s.id === liveCodeFeed.studentId) ?? students.find((s) => s.alias === liveCodeFeed.alias)
+    : null;
 
-  const student = students.find((s) => s.id === liveCodeFeed.studentId);
-  if (!student) return null;
+  const broadcastingAlias = student?.alias ?? liveCodeFeed?.alias;
+  const isHidden = broadcastingAlias === myAlias && !codeBroadcastEnabled;
 
-  // Determine if code should be hidden (privacy toggle)
-  // If the live feed is for the current user (alias match for mock), use local setting
-  const isHidden = student.alias === myAlias && !codeBroadcastEnabled;
-
-  const lines = liveCodeFeed.code.split('\n');
-  const displayLines = lines.slice(-30); // Cap at 30 lines
+  const lines = liveCodeFeed ? liveCodeFeed.code.split('\n') : [];
+  const displayLines = lines.slice(-30);
 
   return (
-    <div className={`flex flex-col rounded-2xl border border-accent-gold/20 bg-space-950 overflow-hidden relative shadow-gold-sm ${isFullscreen ? 'w-full h-full' : 'h-full'}`}>
-      {/* Header bar */}
+    <div className={`flex flex-col rounded-2xl border overflow-hidden relative ${
+      liveCodeFeed ? 'border-accent-gold/20 bg-space-950 shadow-gold-sm' : 'border-space-700/30 bg-space-900/30'
+    } ${isFullscreen ? 'w-full h-full' : 'h-full'}`}>
+
+      {/* Header — always visible */}
       <div className="flex items-center justify-between px-3 py-2 bg-space-900/80 border-b border-space-700/40 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <StatusDot status={student.status} />
-          <span
-            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-space-950 shrink-0"
-            style={{ backgroundColor: student.avatarColor }}
-          >
-            {student.alias.charAt(0)}
-          </span>
-          <span className="font-display font-semibold text-xs text-white truncate">{student.alias}</span>
+          {liveCodeFeed && student ? (
+            <>
+              <StatusDot status={student.status} />
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-space-950 shrink-0"
+                style={{ backgroundColor: student.avatarColor }}
+              >
+                {(student.alias ?? '?').charAt(0)}
+              </span>
+              <span className="font-display font-semibold text-xs text-white truncate">{student.alias}</span>
+            </>
+          ) : liveCodeFeed ? (
+            <>
+              <StatusDot status="connected" />
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-space-950 shrink-0"
+                style={{ backgroundColor: '#3DD8FF' }}
+              >
+                {(liveCodeFeed.alias ?? '?').charAt(0)}
+              </span>
+              <span className="font-display font-semibold text-xs text-white truncate">
+                {liveCodeFeed.alias ?? 'Hacker'}
+              </span>
+            </>
+          ) : (
+            <>
+              <Code2 className="w-3.5 h-3.5 text-space-600" />
+              <span className="font-display text-xs text-white/30 uppercase tracking-widest">Live Code Cam</span>
+            </>
+          )}
         </div>
+
         <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-gold animate-pulse" />
-            <span className="font-display text-[10px] text-accent-gold uppercase tracking-widest hidden sm:inline-block">Live Cam</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`w-1.5 h-1.5 rounded-full ${liveCodeFeed ? 'bg-accent-gold animate-pulse' : 'bg-space-700'}`} />
+            <span className={`font-display text-[10px] uppercase tracking-widest hidden sm:inline-block ${liveCodeFeed ? 'text-accent-gold' : 'text-white/20'}`}>
+              Live Cam
+            </span>
           </div>
-          
+
           {onToggleFullscreen && (
-            <button 
+            <button
               onClick={onToggleFullscreen}
               className="text-white/40 hover:text-white transition-colors ml-1"
-              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
@@ -69,10 +85,19 @@ export default function LiveCodeCam({ isFullscreen, onToggleFullscreen }: LiveCo
         </div>
       </div>
 
-      {/* Body: Code or Privacy Warning */}
+      {/* Body */}
       <div className="flex-1 overflow-y-auto p-3 font-mono text-xs leading-relaxed custom-scrollbar">
         <AnimatePresence mode="wait">
-          {isHidden ? (
+          {!liveCodeFeed ? (
+            <motion.div
+              key="awaiting"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center h-full gap-2 text-white/20"
+            >
+              <Code2 className="w-6 h-6" />
+              <p className="font-body text-center text-[11px]">Awaiting feed…</p>
+            </motion.div>
+          ) : isHidden ? (
             <motion.div
               key="hidden"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -111,10 +136,12 @@ export default function LiveCodeCam({ isFullscreen, onToggleFullscreen }: LiveCo
         </AnimatePresence>
       </div>
 
-      {/* Footer */}
-      <div className="px-3 py-1.5 bg-space-900/50 border-t border-space-700/30 shrink-0 text-right">
-        <span className="font-display italic text-[10px] text-white/40">{liveCodeFeed.mission}</span>
-      </div>
+      {/* Footer — only when live */}
+      {liveCodeFeed && (
+        <div className="px-3 py-1.5 bg-space-900/50 border-t border-space-700/30 shrink-0 text-right">
+          <span className="font-display italic text-[10px] text-white/40">{liveCodeFeed.mission}</span>
+        </div>
+      )}
     </div>
   );
 }

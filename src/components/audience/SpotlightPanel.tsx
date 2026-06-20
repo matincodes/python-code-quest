@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { useGameStore, type SpotlightMode } from '../../store/gameStore';
 import { mockChallenges } from '../../data/mockChallenges';
+import { getChallengesNeededForNextPiece } from '../../utils/pieces';
 import SpotlightStudent from './SpotlightStudent';
 import SpotlightHeadToHead from './SpotlightHeadToHead';
 import SpotlightClosestToLaunch from './SpotlightClosestToLaunch';
@@ -12,17 +14,13 @@ const ROTATION_MS = 25_000;
 const SOLVE_DISPLAY_MS = 8_000;
 const MODES: SpotlightMode[] = ['student', 'headToHead', 'closestToLaunch', 'comeback'];
 
-// ── Piece thresholds (must match SpotlightClosestToLaunch) ────────────────
-const PIECE_THRESHOLDS = [10, 20, 30, 40, 60, 80];
-
-import { Maximize2, Minimize2 } from 'lucide-react';
-
 interface SpotlightPanelProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  totalChallenges?: number;
 }
 
-export default function SpotlightPanel({ isFullscreen, onToggleFullscreen }: SpotlightPanelProps = {}) {
+export default function SpotlightPanel({ isFullscreen, onToggleFullscreen, totalChallenges }: SpotlightPanelProps = {}) {
   const students = useGameStore((s) => s.students);
   const scoreHistory = useGameStore((s) => s.scoreHistory);
   const latestSolve = useGameStore((s) => s.latestSolve);
@@ -91,12 +89,12 @@ export default function SpotlightPanel({ isFullscreen, onToggleFullscreen }: Spo
     ? comebackStudent.score - (scoreHistory[comebackStudent.id]?.[0]?.score ?? comebackStudent.score)
     : 0;
 
-  // ── Compute closest-to-launch ────────────────────────────────────────────
+  // ── Compute closest-to-launch (challenge-count based) ───────────────────
+  const tc = totalChallenges ?? mockChallenges.length;
   const closestStudent = sorted.reduce<typeof sorted[0] | null>((best, s) => {
-    const nextThreshold = PIECE_THRESHOLDS[s.piecesUnlocked] ?? Infinity;
-    const gap = nextThreshold - s.score;
     if (!best) return s;
-    const bestGap = (PIECE_THRESHOLDS[best.piecesUnlocked] ?? Infinity) - best.score;
+    const gap = getChallengesNeededForNextPiece(s.piecesUnlocked, tc);
+    const bestGap = getChallengesNeededForNextPiece(best.piecesUnlocked, tc);
     return gap < bestGap ? s : best;
   }, null);
 
@@ -172,7 +170,7 @@ export default function SpotlightPanel({ isFullscreen, onToggleFullscreen }: Spo
               <SpotlightStudent
                 student={sorted[0]}
                 rank={1}
-                totalChallenges={mockChallenges.length}
+                totalChallenges={totalChallenges ?? mockChallenges.length}
               />
             )}
 
@@ -182,12 +180,12 @@ export default function SpotlightPanel({ isFullscreen, onToggleFullscreen }: Spo
                 studentB={sorted[1]}
                 rankA={1}
                 rankB={2}
-                totalChallenges={mockChallenges.length}
+                totalChallenges={totalChallenges ?? mockChallenges.length}
               />
             )}
 
             {activeMode === 'closestToLaunch' && closestStudent && (
-              <SpotlightClosestToLaunch student={closestStudent} />
+              <SpotlightClosestToLaunch student={closestStudent} totalChallenges={tc} />
             )}
 
             {activeMode === 'comeback' && comebackStudent && (
@@ -200,7 +198,7 @@ export default function SpotlightPanel({ isFullscreen, onToggleFullscreen }: Spo
 
             {activeMode === 'comeback' && !comebackStudent && sorted[0] && (
               // Fallback: show top student if no comeback data yet
-              <SpotlightStudent student={sorted[0]} rank={1} totalChallenges={mockChallenges.length} />
+              <SpotlightStudent student={sorted[0]} rank={1} totalChallenges={totalChallenges ?? mockChallenges.length} />
             )}
 
             {activeMode === 'latestSolve' && latestSolve && (

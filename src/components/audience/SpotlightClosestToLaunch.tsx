@@ -1,21 +1,26 @@
 import { motion } from 'framer-motion';
 import { Rocket } from 'lucide-react';
 import type { Student } from '../../data/mockStudents';
-
-const PIECE_THRESHOLDS = [10, 20, 30, 40, 60, 80]; // score needed for each piece
+import {
+  getVisualPieces,
+  getNextPieceThreshold,
+  getPrevPieceThreshold,
+  getChallengesNeededForNextPiece,
+  getPieceProgressPct,
+  VISUAL_PIECE_COUNT,
+} from '../../utils/pieces';
 
 interface Props {
   student: Student;
+  totalChallenges: number;
 }
 
-export default function SpotlightClosestToLaunch({ student }: Props) {
-  const nextPiece = student.piecesUnlocked;
-  const nextThreshold = PIECE_THRESHOLDS[nextPiece] ?? null;
-  const ptsNeeded = nextThreshold !== null ? Math.max(0, nextThreshold - student.score) : 0;
-  const progressPct = nextThreshold
-    ? Math.min(100, ((student.score - (PIECE_THRESHOLDS[nextPiece - 1] ?? 0)) /
-        (nextThreshold - (PIECE_THRESHOLDS[nextPiece - 1] ?? 0))) * 100)
-    : 100;
+export default function SpotlightClosestToLaunch({ student, totalChallenges }: Props) {
+  const visualPieces = getVisualPieces(student.piecesUnlocked, totalChallenges);
+  const nextThreshold = getNextPieceThreshold(student.piecesUnlocked, totalChallenges);
+  const prevThreshold = getPrevPieceThreshold(student.piecesUnlocked, totalChallenges);
+  const challengesNeeded = getChallengesNeededForNextPiece(student.piecesUnlocked, totalChallenges);
+  const progressPct = getPieceProgressPct(student.piecesUnlocked, totalChallenges);
   const isComplete = nextThreshold === null;
 
   return (
@@ -43,8 +48,12 @@ export default function SpotlightClosestToLaunch({ student }: Props) {
       {/* Progress bar to next piece */}
       <div className="w-full space-y-1.5">
         <div className="flex justify-between text-xs font-mono text-white/40">
-          <span>Piece {nextPiece + 1}</span>
-          {!isComplete && <span className="text-status-danger font-bold">+{ptsNeeded} pts away!</span>}
+          <span>Piece {visualPieces + 1}</span>
+          {!isComplete && (
+            <span className="text-status-danger font-bold">
+              {challengesNeeded === 1 ? '1 solve away!' : `${challengesNeeded} solves away!`}
+            </span>
+          )}
         </div>
         <div className="w-full h-3 rounded-full bg-space-800 overflow-hidden border border-space-700/40">
           <motion.div
@@ -55,18 +64,18 @@ export default function SpotlightClosestToLaunch({ student }: Props) {
           />
         </div>
         <div className="flex justify-between text-[10px] font-mono text-white/20">
-          <span>{PIECE_THRESHOLDS[nextPiece - 1] ?? 0}</span>
-          <span>{nextThreshold ?? '🚀 LAUNCHED'}</span>
+          <span>Q{prevThreshold}</span>
+          <span>{isComplete ? '🚀 LAUNCHED' : `Q${nextThreshold}`}</span>
         </div>
       </div>
 
-      {/* Pieces unlocked dots */}
+      {/* Visual piece dots */}
       <div className="flex gap-1.5">
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: VISUAL_PIECE_COUNT }).map((_, i) => (
           <motion.span
             key={i}
-            className={`w-3 h-3 rounded-sm ${i < student.piecesUnlocked ? 'bg-status-danger' : 'bg-space-700'}`}
-            animate={i === student.piecesUnlocked - 1 ? { scale: [1, 1.3, 1] } : {}}
+            className={`w-3 h-3 rounded-sm ${i < visualPieces ? 'bg-status-danger' : 'bg-space-700'}`}
+            animate={i === visualPieces - 1 ? { scale: [1, 1.3, 1] } : {}}
             transition={{ duration: 1, repeat: Infinity, repeatDelay: 1 }}
           />
         ))}

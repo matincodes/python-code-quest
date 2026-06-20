@@ -94,7 +94,8 @@ export default function AudiencePage() {
 
   on('code:live', (data) => {
     setLiveCodeFeed({
-      studentId: data.studentId, // Would need backend to attach studentId
+      studentId: data.studentId ?? '',
+      alias: data.alias,
       code: data.code,
       mission: currentChallenge?.title ?? 'Space Navigation',
       cursorLine: data.code.split('\n').length - 1
@@ -186,7 +187,7 @@ export default function AudiencePage() {
             <LeaderboardPin students={students} />
           </div>
           <div className="flex-1 min-h-[300px]">
-            <SpotlightPanel onToggleFullscreen={() => toggleFullscreen('spotlight')} />
+            <SpotlightPanel totalChallenges={totalChallenges} onToggleFullscreen={() => toggleFullscreen('spotlight')} />
           </div>
           <div className="flex-1 min-h-[220px]">
             <LiveCodeCam onToggleFullscreen={() => toggleFullscreen('liveCam')} />
@@ -200,7 +201,7 @@ export default function AudiencePage() {
         {fullscreenPanel && (
           <div className="absolute inset-0 bg-space-950/95 z-50 p-6 flex flex-col backdrop-blur-sm">
             {fullscreenPanel === 'spotlight' && (
-              <SpotlightPanel isFullscreen onToggleFullscreen={() => toggleFullscreen('spotlight')} />
+              <SpotlightPanel isFullscreen totalChallenges={totalChallenges} onToggleFullscreen={() => toggleFullscreen('spotlight')} />
             )}
             {fullscreenPanel === 'liveCam' && (
               <LiveCodeCam isFullscreen onToggleFullscreen={() => toggleFullscreen('liveCam')} />

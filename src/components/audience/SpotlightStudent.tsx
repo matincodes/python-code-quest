@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { Student } from '../../data/mockStudents';
 import SpaceBasePlot from './SpaceBasePlot';
+import { getVisualPieces, VISUAL_PIECE_COUNT } from '../../utils/pieces';
 
 interface Props {
   student: Student;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function SpotlightStudent({ student, rank, totalChallenges }: Props) {
+  const visualPieces = getVisualPieces(student.piecesUnlocked, totalChallenges);
   return (
     <div className="flex flex-col gap-3 p-3 h-full">
       {/* Label */}
@@ -43,7 +45,7 @@ export default function SpotlightStudent({ student, rank, totalChallenges }: Pro
         <div className="rounded-xl bg-space-900/60 border border-space-700/30 px-3 py-2">
           <p className="font-body text-xs text-white/40">Pieces</p>
           <p className="font-mono font-bold text-accent-gold text-lg leading-tight">
-            {student.piecesUnlocked} <span className="text-white/20 text-xs font-normal">/ 6</span>
+            {visualPieces} <span className="text-white/20 text-xs font-normal">/ {VISUAL_PIECE_COUNT}</span>
           </p>
         </div>
       </div>
